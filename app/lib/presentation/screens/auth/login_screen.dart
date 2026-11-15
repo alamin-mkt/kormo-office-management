@@ -37,10 +37,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _selectQuickRole(UserRole role) {
-    _emailController.text = '${role.name}@kormo.com';
-    _passwordController.text = 'Kormo@2026!';
-    ref.read(authProvider.notifier).setMockRoleProfile(role);
-    context.go('/dashboard');
+    setState(() {
+      _emailController.text = '${role.name}@kormo.com';
+      _passwordController.text = 'Kormo@2026!';
+    });
+    _handleLogin();
   }
 
   @override
