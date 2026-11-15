@@ -1,6 +1,5 @@
 {
-  "buildCommand": "bash vercel_build.sh",
-  "outputDirectory": "app/build/web",
+  "outputDirectory": "public",
   "cleanUrls": true,
   "rewrites": [
     {
