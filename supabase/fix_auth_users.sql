@@ -1,9 +1,9 @@
 -- ==============================================================================
--- KORMO - SUPABASE AUTH ACCOUNTS FIX
+-- KORMO - SUPABASE AUTH ACCOUNTS FIX (v2 - Fixed generated column)
 -- Run this in Supabase SQL Editor to enable instant login for all seeded accounts
 -- ==============================================================================
 
--- 1. Fix NULL string columns in auth.users (prevents GoTrue 500 error)
+-- 1. Fix NULL token fields in auth.users (confirmed_at is generated automatically)
 UPDATE auth.users
 SET 
     confirmation_token = COALESCE(confirmation_token, ''),
@@ -15,39 +15,43 @@ SET
     phone_change_token = COALESCE(phone_change_token, ''),
     reauthentication_token = COALESCE(reauthentication_token, ''),
     email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
-    confirmed_at = COALESCE(confirmed_at, NOW()),
     last_sign_in_at = COALESCE(last_sign_in_at, NOW()),
     is_super_admin = COALESCE(is_super_admin, FALSE)
-WHERE email LIKE '%@kormo.com' OR email = 'test_kormo_99@gmail.com';
+WHERE email LIKE '%@kormo.com';
 
--- 2. Ensure auth.identities are cleanly linked
-INSERT INTO auth.identities (
-    id,
-    user_id,
-    identity_data,
-    provider,
-    provider_id,
-    last_sign_in_at,
-    created_at,
-    updated_at
-)
-SELECT 
-    u.id::text,
-    u.id,
-    jsonb_build_object(
-        'sub', u.id::text,
-        'email', u.email,
-        'email_verified', true,
-        'phone_verified', false
-    ),
-    'email',
-    u.id::text,
-    NOW(),
-    NOW(),
-    NOW()
-FROM auth.users u
-WHERE u.email LIKE '%@kormo.com'
-ON CONFLICT DO NOTHING;
+-- 2. Link identities safely if not already present
+DO $$
+BEGIN
+    INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        last_sign_in_at,
+        created_at,
+        updated_at
+    )
+    SELECT 
+        u.id::text,
+        u.id,
+        jsonb_build_object(
+            'sub', u.id::text,
+            'email', u.email,
+            'email_verified', true,
+            'phone_verified', false
+        ),
+        'email',
+        NOW(),
+        NOW(),
+        NOW()
+    FROM auth.users u
+    WHERE u.email LIKE '%@kormo.com'
+      AND NOT EXISTS (
+          SELECT 1 FROM auth.identities i WHERE i.user_id = u.id
+      );
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Identities notice: %', SQLERRM;
+END $$;
 
 -- 3. Verify the 6 role users
 SELECT id, email, role, email_confirmed_at FROM auth.users WHERE email LIKE '%@kormo.com';
