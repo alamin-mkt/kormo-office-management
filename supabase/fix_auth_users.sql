@@ -1,57 +1,48 @@
 -- ==============================================================================
--- KORMO - SUPABASE AUTH ACCOUNTS FIX (v2 - Fixed generated column)
--- Run this in Supabase SQL Editor to enable instant login for all seeded accounts
+-- KORMO - SUPABASE AUTH AUTO-PATCH (Foolproof NULL Column Fix)
+-- Run this in Supabase SQL Editor: It patches ALL nullable string columns
+-- in auth.users and auth.identities so GoTrue never crashes with a scan error.
 -- ==============================================================================
 
--- 1. Fix NULL token fields in auth.users (confirmed_at is generated automatically)
-UPDATE auth.users
-SET 
-    confirmation_token = COALESCE(confirmation_token, ''),
-    recovery_token = COALESCE(recovery_token, ''),
-    email_change_token_new = COALESCE(email_change_token_new, ''),
-    email_change = COALESCE(email_change, ''),
-    email_change_token_current = COALESCE(email_change_token_current, ''),
-    phone_change = COALESCE(phone_change, ''),
-    phone_change_token = COALESCE(phone_change_token, ''),
-    reauthentication_token = COALESCE(reauthentication_token, ''),
-    email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
-    last_sign_in_at = COALESCE(last_sign_in_at, NOW()),
-    is_super_admin = COALESCE(is_super_admin, FALSE)
-WHERE email LIKE '%@kormo.com';
-
--- 2. Link identities safely if not already present
 DO $$
+DECLARE
+    r RECORD;
+    v_sql TEXT;
 BEGIN
-    INSERT INTO auth.identities (
-        id,
-        user_id,
-        identity_data,
-        provider,
-        last_sign_in_at,
-        created_at,
-        updated_at
-    )
-    SELECT 
-        u.id::text,
-        u.id,
-        jsonb_build_object(
-            'sub', u.id::text,
-            'email', u.email,
-            'email_verified', true,
-            'phone_verified', false
-        ),
-        'email',
-        NOW(),
-        NOW(),
-        NOW()
-    FROM auth.users u
-    WHERE u.email LIKE '%@kormo.com'
-      AND NOT EXISTS (
-          SELECT 1 FROM auth.identities i WHERE i.user_id = u.id
-      );
-EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Identities notice: %', SQLERRM;
+    -- 1. Patch ALL nullable text/varchar columns in auth.users
+    FOR r IN (
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'auth' 
+          AND table_name = 'users' 
+          AND data_type IN ('text', 'character varying')
+          AND is_nullable = 'YES'
+          AND column_name NOT IN ('email', 'encrypted_password')
+    ) LOOP
+        v_sql := format('UPDATE auth.users SET %I = COALESCE(%I, '''') WHERE email LIKE ''%%@kormo.com'';', r.column_name, r.column_name);
+        EXECUTE v_sql;
+    END LOOP;
+
+    -- 2. Ensure email_confirmed_at is set for all kormo users
+    UPDATE auth.users
+    SET email_confirmed_at = COALESCE(email_confirmed_at, NOW()),
+        last_sign_in_at = COALESCE(last_sign_in_at, NOW())
+    WHERE email LIKE '%@kormo.com';
+
+    -- 3. Patch ALL nullable text/varchar columns in auth.identities
+    FOR r IN (
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_schema = 'auth' 
+          AND table_name = 'identities' 
+          AND data_type IN ('text', 'character varying')
+          AND is_nullable = 'YES'
+          AND column_name NOT IN ('id', 'provider')
+    ) LOOP
+        v_sql := format('UPDATE auth.identities SET %I = COALESCE(%I, '''') WHERE user_id IN (SELECT id FROM auth.users WHERE email LIKE ''%%@kormo.com'');', r.column_name, r.column_name);
+        EXECUTE v_sql;
+    END LOOP;
 END $$;
 
--- 3. Verify the 6 role users
-SELECT id, email, role, email_confirmed_at FROM auth.users WHERE email LIKE '%@kormo.com';
+-- 4. Verify users
+SELECT id, email, phone, role, email_confirmed_at FROM auth.users WHERE email LIKE '%@kormo.com';
