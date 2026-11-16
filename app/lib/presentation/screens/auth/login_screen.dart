@@ -159,9 +159,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : const Text('Sign In to KORMO', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 20),
                   const Divider(),
                   const SizedBox(height: 16),
+
+                  // Admin Portal Switcher
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryTeal,
+                      side: const BorderSide(color: AppColors.primaryTeal, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => context.go('/admin-auth'),
+                    icon: const Icon(Icons.admin_panel_settings, size: 18),
+                    label: const Text(
+                      'Admin Portal: Login & Registration',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
 
                   // Quick Role Switcher for Verification & Audit
                   const Text(

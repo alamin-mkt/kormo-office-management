@@ -47,6 +47,44 @@ class AuthRepository {
     return response;
   }
 
+  Future<AuthResponse> signUpAdmin({
+    required String email,
+    required String password,
+    required String fullName,
+    String? companyName,
+    String? phone,
+  }) async {
+    final response = await _client.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: {
+        'full_name': fullName.trim(),
+        'company_name': companyName?.trim(),
+        'phone': phone?.trim(),
+        'role': 'admin',
+      },
+    );
+
+    if (response.user != null) {
+      try {
+        await _client.rpc('handle_admin_signup', params: {
+          'p_full_name': fullName.trim(),
+          'p_company_name': companyName?.trim() ?? '',
+          'p_phone': phone?.trim() ?? '',
+        });
+      } catch (e) {
+        debugPrint('handle_admin_signup RPC notice: $e');
+      }
+
+      await recordLoginEvent(
+        platform: kIsWeb ? 'web' : 'android',
+        deviceInfo: kIsWeb ? 'Admin Web Portal' : 'Admin Android App',
+      );
+    }
+
+    return response;
+  }
+
   Future<void> signOut() async {
     await _client.auth.signOut();
   }

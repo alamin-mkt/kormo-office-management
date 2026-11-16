@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/screens/auth/admin_auth_screen.dart';
 import '../../presentation/screens/dashboard/dashboard_screen.dart';
 import '../../presentation/screens/attendance/attendance_screen.dart';
 import '../../presentation/screens/leave/leave_screen.dart';
@@ -21,6 +22,21 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/admin-auth',
+      builder: (context, state) {
+        final isSignUp = state.uri.queryParameters['mode'] == 'signup';
+        return AdminAuthScreen(initialIsSignUp: isSignUp);
+      },
+    ),
+    GoRoute(
+      path: '/admin/login',
+      builder: (context, state) => const AdminAuthScreen(initialIsSignUp: false),
+    ),
+    GoRoute(
+      path: '/admin/signup',
+      builder: (context, state) => const AdminAuthScreen(initialIsSignUp: true),
     ),
     ShellRoute(
       navigatorKey: _shellNavigatorKey,

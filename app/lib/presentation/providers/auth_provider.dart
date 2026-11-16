@@ -66,6 +66,37 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> adminSignUp({
+    required String email,
+    required String password,
+    required String fullName,
+    String? companyName,
+    String? phone,
+  }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final response = await _repo.signUpAdmin(
+        email: email,
+        password: password,
+        fullName: fullName,
+        companyName: companyName,
+        phone: phone,
+      );
+      if (response.user != null) {
+        if (response.session != null) {
+          await loadProfile();
+        }
+        state = state.copyWith(isLoading: false);
+        return true;
+      }
+      state = state.copyWith(isLoading: false, errorMessage: 'Admin registration failed');
+      return false;
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString().replaceAll('Exception: ', ''));
+      return false;
+    }
+  }
+
   Future<void> signOut() async {
     await _repo.signOut();
     state = AuthState();
